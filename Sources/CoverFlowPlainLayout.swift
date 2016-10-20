@@ -24,13 +24,13 @@ open class CoverFlowPlainLayout: UICollectionViewLayout {
         setup()
     }
     
-    convenience init(offset off: UIOffset, type: DirectionType) {
+    public convenience init(offset off: UIOffset, type: DirectionType) {
         self.init()
         offset = off
         direction = type
     }
     
-    override public init() {
+    public override init() {
         super.init()
         setup()
     }
