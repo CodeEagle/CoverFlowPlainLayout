@@ -1,19 +1,46 @@
 //
-//  CoverFlowPlainLayout.swift
-//  CoverFlowPlainLayout
+//  CoverFlowPlain.swift
+//  CoverFlowLayout
 //
 //  Created by LawLincoln on 2016/10/20.
 //  Copyright © 2016年 Broccoli. All rights reserved.
 //
 
 import UIKit
+/**
+ 👊 实现 *CoverFlow* 效果的 UICollectionViewLayout
+ 
+ 👉 可以通过 CollectionView 的 contentInset 来对首个 item 实现定制化偏移
+ 
+ 🙆 horizontal 只支持 contentInset.left
+ 
+ 🙆 vertical 只支持 contentInset.top
+ 
+ 👻 实例
+ ```
+ private let layout = CoverFlowPlainLayout(itemSpacing: UIOffsetMake(10, 10), scroll: .horizontal)
+ private var cv: UICollectionView!
+ override func viewDidLoad() {
+ super.viewDidLoad()
+ cv = UICollectionView(frame: UIScreen.main.bounds, collectionViewLayout: layout)
+ cv.delegate = self
+ cv.dataSource = self
+ cv.register(UICollectionViewCell.self, forCellWithReuseIdentifier: CellIdentifier)
+ cv.contentInset.left = 10 // or cv.contentInset.left = 10 in vertical mode
+ view.addSubview(cv)
+ }
+ ```
+ 
+ */
 open class CoverFlowPlainLayout: UICollectionViewLayout {
     
     public enum `DirectionType` { case horizontal, vertical }
     
     open private(set) var currentPage: Int = 0
-    open var offset: UIOffset = .zero { didSet { invalidateLayout() } }
-    open var direction: DirectionType = .horizontal
+    open var itemSpacing: UIOffset = .zero { didSet { invalidateLayout() } }
+    open var direction: DirectionType = .horizontal { didSet { invalidateLayout() } }
+    open var targetSection: Int = 0 { didSet { invalidateLayout() } }
+    fileprivate var inset: UIEdgeInsets { return collectionView?.contentInset ?? .zero }
     fileprivate var layoutInfo: [String : UICollectionViewLayoutAttributes] = [:]
     fileprivate let offsetKeyPath = "collectionView.contentOffset"
     
@@ -24,17 +51,17 @@ open class CoverFlowPlainLayout: UICollectionViewLayout {
         setup()
     }
     
-    public convenience init(offset off: UIOffset, type: DirectionType) {
+    convenience init(itemSpacing space: UIOffset, scroll type: DirectionType) {
         self.init()
-        offset = off
+        itemSpacing = space
         direction = type
     }
     
-    public override init() {
+    override public init() {
         super.init()
         setup()
     }
-
+    
     //MARK:- override
     open override func prepare() {
         super.prepare()
@@ -71,13 +98,14 @@ open class CoverFlowPlainLayout: UICollectionViewLayout {
     
     open override var collectionViewContentSize: CGSize {
         guard let value = collectionView else { return .zero }
-        var size = CGSize(width: pageWidth * CGFloat(value.numberOfItems(inSection: 0)) + offset.horizontal,
-                          height: value.bounds.height)
+        var width = pageWidth * CGFloat(value.numberOfItems(inSection: 0)) + itemSpacing.horizontal / 2 + inset.left
+        var height = value.bounds.height
+        
         if direction == .vertical {
-            size = CGSize(width: value.bounds.width,
-                          height: pageHeight * CGFloat(value.numberOfItems(inSection: 0)) + offset.vertical)
+            width = value.bounds.width
+            height = pageHeight * CGFloat(value.numberOfItems(inSection: 0)) + itemSpacing.vertical / 2 + inset.top
         }
-        return size
+        return CGSize(width: width, height: height)
     }
     
     open override func targetContentOffset(forProposedContentOffset proposedContentOffset: CGPoint, withScrollingVelocity velocity: CGPoint) -> CGPoint {
@@ -85,13 +113,13 @@ open class CoverFlowPlainLayout: UICollectionViewLayout {
         guard let value = collectionView else { return point }
         let rawPageValue = direction == .vertical ? (value.contentOffset.y / pageHeight) : (value.contentOffset.x / pageWidth)
         let velocityValue = direction == .vertical ? velocity.y : velocity.x
-
+        
         let _currentPage = velocityValue > 0 ? (floor(rawPageValue)) : (ceil(rawPageValue))
         let _nextPage = velocityValue > 0 ? (ceil(rawPageValue)) : (floor(rawPageValue))
         
         let pannedLessThanAPage = fabs(1 + _currentPage - rawPageValue) > 0.5
         let flicked = fabs(velocityValue) > flickVelocity
-        let offsetValue = (direction == .vertical ? offset.vertical : offset.horizontal)/2
+        let offsetValue = (direction == .vertical ? itemSpacing.vertical : itemSpacing.horizontal)/2
         let length = direction == .vertical ? pageHeight : pageWidth
         
         if pannedLessThanAPage && flicked {
@@ -113,9 +141,23 @@ open class CoverFlowPlainLayout: UICollectionViewLayout {
             if direction == .horizontal { point.x = max(0, p) }
             else { point.y = max(0, p) }
         }
+        
+        if direction == .horizontal {
+            if point.x == 0 {
+                point.x -= inset.left
+            } else {
+                point.x -= inset.left - itemSpacing.horizontal/2
+            }
+        } else {
+            if point.y == 0 {
+                point.y -= inset.top
+            } else {
+                point.y -= inset.top - itemSpacing.vertical/2
+            }
+        }
         return point
     }
-
+    
     open override func observeValue(forKeyPath keyPath: String?, of object: Any?, change: [NSKeyValueChangeKey : Any]?, context: UnsafeMutableRawPointer?) {
         if let value = collectionView, keyPath == offsetKeyPath {
             let floatPage = value.contentOffset.x / pageWidth
@@ -131,20 +173,28 @@ fileprivate extension CoverFlowPlainLayout {
     func setup() {
         addObserver(self, forKeyPath: offsetKeyPath, options: .new, context: nil)
     }
-
+    
     var cardWidth: CGFloat {
         guard let value = collectionView else { return 0 }
-        return value.bounds.width - offset.horizontal * 2
+        var offset: CGFloat = (itemSpacing.horizontal/2 + inset.left) * 2
+        if direction == .vertical {
+            offset = (itemSpacing.horizontal + inset.left) * 2
+        }
+        return value.bounds.width - offset
     }
     
     var cardHeight: CGFloat {
         guard let value = collectionView else { return 0 }
-        return value.bounds.height - offset.vertical * 2
+        var offset: CGFloat = (itemSpacing.vertical + inset.top) * 2
+        if direction == .vertical {
+            offset = (itemSpacing.vertical/2 + inset.top) * 2
+        }
+        return value.bounds.height - offset
     }
     
-    var pageWidth: CGFloat { return cardWidth + offset.horizontal / 2 }
+    var pageWidth: CGFloat { return cardWidth + itemSpacing.horizontal / 2 }
     
-    var pageHeight: CGFloat { return cardHeight + offset.vertical / 2 }
+    var pageHeight: CGFloat { return cardHeight + itemSpacing.vertical / 2 }
     
     var flickVelocity: CGFloat { return 3 }
     
@@ -152,14 +202,14 @@ fileprivate extension CoverFlowPlainLayout {
         var rect = CGRect.zero
         guard let value = collectionView else { return rect }
         if direction == .horizontal {
-            var posX = Int(offset.horizontal / 2 + pageWidth * CGFloat(indexPath.row))
+            var posX = Int(itemSpacing.horizontal / 2 + pageWidth * CGFloat(indexPath.row))
             if value.numberOfItems(inSection: 0) == 1 {
-                posX = Int(offset.horizontal + pageWidth * CGFloat(indexPath.row))
+                posX = Int(itemSpacing.horizontal + pageWidth * CGFloat(indexPath.row))
             }
-            rect = CGRect(x: CGFloat(posX), y: offset.vertical, width: cardWidth, height: cardHeight)
+            rect = CGRect(x: CGFloat(posX), y: itemSpacing.vertical, width: cardWidth, height: cardHeight)
         } else {
-            let y = offset.vertical / 2 + pageHeight * CGFloat(indexPath.row)
-            rect = CGRect(x: offset.horizontal, y: y, width: cardWidth, height: cardHeight)
+            let y = itemSpacing.vertical / 2 + pageHeight * CGFloat(indexPath.row)
+            rect = CGRect(x: itemSpacing.horizontal, y: y, width: cardWidth, height: cardHeight)
         }
         return rect
     }
