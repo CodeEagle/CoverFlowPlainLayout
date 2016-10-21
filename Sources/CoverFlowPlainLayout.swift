@@ -40,6 +40,7 @@ open class CoverFlowPlainLayout: UICollectionViewLayout {
     open var itemSpacing: UIOffset = .zero { didSet { invalidateLayout() } }
     open var direction: DirectionType = .horizontal { didSet { invalidateLayout() } }
     open var targetSection: Int = 0 { didSet { invalidateLayout() } }
+    open var flickVelocity: CGFloat = 0.8
     fileprivate var inset: UIEdgeInsets { return collectionView?.contentInset ?? .zero }
     fileprivate var layoutInfo: [String : UICollectionViewLayoutAttributes] = [:]
     fileprivate let offsetKeyPath = "collectionView.contentOffset"
@@ -51,7 +52,7 @@ open class CoverFlowPlainLayout: UICollectionViewLayout {
         setup()
     }
     
-    public convenience init(itemSpacing space: UIOffset, scroll type: DirectionType) {
+    convenience init(itemSpacing space: UIOffset, scroll type: DirectionType) {
         self.init()
         itemSpacing = space
         direction = type
@@ -195,8 +196,6 @@ fileprivate extension CoverFlowPlainLayout {
     var pageWidth: CGFloat { return cardWidth + itemSpacing.horizontal / 2 }
     
     var pageHeight: CGFloat { return cardHeight + itemSpacing.vertical / 2 }
-    
-    var flickVelocity: CGFloat { return 3 }
     
     func contentFrameForCard(at indexPath: IndexPath) -> CGRect {
         var rect = CGRect.zero
