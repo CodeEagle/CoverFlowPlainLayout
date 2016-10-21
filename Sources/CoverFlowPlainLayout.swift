@@ -52,7 +52,7 @@ open class CoverFlowPlainLayout: UICollectionViewLayout {
         setup()
     }
     
-    convenience init(itemSpacing space: UIOffset, scroll type: DirectionType) {
+    public convenience init(itemSpacing space: UIOffset, scroll type: DirectionType) {
         self.init()
         itemSpacing = space
         direction = type
