@@ -40,7 +40,7 @@ open class CoverFlowPlainLayout: UICollectionViewLayout {
     open var itemSpacing: UIOffset = .zero { didSet { invalidateLayout() } }
     open var direction: DirectionType = .horizontal { didSet { invalidateLayout() } }
     open var targetSection: Int = 0 { didSet { invalidateLayout() } }
-    open var flickVelocity: CGFloat = 0.8
+    open var flickVelocity: CGFloat = 0.1
     fileprivate var inset: UIEdgeInsets { return collectionView?.contentInset ?? .zero }
     fileprivate var layoutInfo: [String : UICollectionViewLayoutAttributes] = [:]
     fileprivate let offsetKeyPath = "collectionView.contentOffset"
